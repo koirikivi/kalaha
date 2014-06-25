@@ -1,7 +1,7 @@
 import pygame
 import pygame.locals as pg
-import kalaha
-from kalaha import PLAYER_1, PLAYER_2, AMBOS
+from . import game
+from .game import PLAYER_1, PLAYER_2, AMBOS
 
 
 ANIMATE_EVENT = pg.USEREVENT + 1
@@ -13,7 +13,7 @@ def draw_text(text, size=36, color=(100, 100, 100)):
     return font.render(str(text), 1, color)
 
 
-class Human(kalaha.HumanPlayer):
+class Human(game.HumanPlayer):
     __name__ = "Human"
     is_human = True
 
@@ -33,8 +33,8 @@ class Game(object):
         self.turn_component = None
         self.score_component = None
         self.new_game_components = []
-        self.players = [Human(PLAYER_1), kalaha.RandomBot(PLAYER_2)]
-        self.board = kalaha.Board()
+        self.players = [Human(PLAYER_1), game.RandomBot(PLAYER_2)]
+        self.board = game.Board()
 
         center = self.screen.get_rect().center
         width = AmboComponent.w + 20
@@ -89,7 +89,7 @@ class Game(object):
         right = 800 - 40
         height = 30
         from functools import partial
-        for i, bot_class in enumerate([kalaha.RandomBot, kalaha.GreedyBot, kalaha.SearchBot]):
+        for i, bot_class in enumerate([game.RandomBot, game.GreedyBot, game.SearchBot]):
             component = SimpleTextComponent("New game ({0})".format(bot_class.__name__), size=20)
             component.active = True
             component.on_click = partial(self.init_round, player_2_class=bot_class)
@@ -97,7 +97,7 @@ class Game(object):
             component.rect.right = right
             self.components.add(component)
 
-    def init_round(self, player_1_class=Human, player_2_class=kalaha.RandomBot):
+    def init_round(self, player_1_class=Human, player_2_class=game.RandomBot):
         self.players = [player_1_class(PLAYER_1),
                         player_2_class(PLAYER_2)]
         self.name_components[PLAYER_1].set_text(player_1_class.__name__)
@@ -147,7 +147,7 @@ class Game(object):
                     if component.active \
                             and component.rect.collidepoint(event.pos):
                         if hasattr(component, "ambo"):
-                            move = kalaha.Move(ambo=component.index, player=PLAYER_1)
+                            move = game.Move(ambo=component.index, player=PLAYER_1)
                             if self.board.is_valid_move(move):
                                 component.hilight = True
                         else:
@@ -162,7 +162,7 @@ class Game(object):
             elif event.type == ANIMATE_EVENT:
                 self.animate()
             elif event.type == PLAYER_MOVE_EVENT:
-                move = kalaha.Move(ambo=event.ambo, player=PLAYER_1)
+                move = game.Move(ambo=event.ambo, player=PLAYER_1)
                 if self.board.is_valid_move(move):
                     self.waiting = True
                     self.start_animation(move)
