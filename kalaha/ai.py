@@ -73,10 +73,10 @@ class GreedyBot(object):
     def get_move(self, board):
         state = GameState(board=board, turn=self.index)
         children = state.get_children()
-        children.sort(key=self.evaluate, reverse=True)
         if children:
-            self._pre_move(children[0])
-            return children[0].move
+            best = max(children, key=self.evaluate)
+            self._pre_move(best)
+            return best.move
 
 
 class SearchBot(object):
@@ -135,7 +135,7 @@ class SearchBot(object):
                 for child in node.get_children():
                     frontier.append(child)
 
-        children.sort(key=lambda s: getattr(s, "score", 0), reverse=True)
         if children:
-            self._pre_move(children[0])
-            return children[0].move
+            best = max(children, key=lambda s: getattr(s, "score", 0))
+            self._pre_move(best)
+            return best.move
