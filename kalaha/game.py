@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 #-*- encoding: utf-8 -*-
+from copy import deepcopy
 import os
 import random
 import time
@@ -10,7 +11,6 @@ PLAYER_2 = 1
 AMBOS = 6
 AMBO_BEANS = 6
 ANIM_SLEEP_TIME = 0.2
-ANIM_SLEEP_TIME = 0.0 # XXX
 
 
 def clear():
@@ -33,7 +33,6 @@ class Board(object):
         self.kalahas = [0, 0]
 
     def clone(self):
-        from copy import deepcopy
         return Board(ambos=deepcopy(self.ambos),
                      kalahas=deepcopy(self.kalahas))
 
@@ -234,62 +233,32 @@ class SearchBot(object):
         self.opponent = PLAYER_2 if player_index == PLAYER_1 else PLAYER_1
 
     def _pre_move(self, state):
-        score = self.evaluate(state)
+        score = getattr(state, "score", None)
         print("SearchBot {0}, Move: {1}, Score: {2}".format(
             self.index + 1, state.move, score))
         time.sleep(ANIM_SLEEP_TIME)
 
-    #def evaluate(self, state):
-    #    kalahas = state.board.kalahas
-    #    ambos = [sum(state.board.ambos[0]), sum(state.board.ambos[1])]
-
-    #    kalaha_score = kalahas[self.index] - kalahas[self.opponent]
-
-    #    next_turn_score = 0
-    #    if not state.board.is_end_position() and state.turn == self.index:
-    #        next_turn_score += 1 + int(kalaha_score * 0.1)
-    #    #elif not state.board.is_end_position() and state.turn == self.opponent:
-    #        #next_turn_score -= 1 - int(kalaha_score * 0.1)
-
-    #    ambo_score = ambos[self.opponent] - ambos[self.index]
-    #    #return (kalaha_score * 3) + (next_turn_score * 2)
-    #    return kalaha_score + next_turn_score
-
     def evaluate(self, state):
         kalahas = state.board.kalahas
-        ambos = state.board.ambos
+        score = kalahas[self.index] - kalahas[self.opponent]
+
+        # Always follow the winning path, but for fun also try to
+        # get the maximum number of points possible
         winning_kalaha_points = (AMBOS * AMBO_BEANS) + 1
         if kalahas[self.index] >= winning_kalaha_points:
-            return 10000
+            score += 1000
         elif kalahas[self.opponent] >= winning_kalaha_points:
-            return -10000
+            score -= 1000
 
-        kalaha_score = kalahas[self.index] - kalahas[self.opponent]
-        return kalaha_score
-        #ambo_score = sum(ambos[self.opponent]) - sum(ambos[self.index])
-        #empty_score = (sum(1 if a == 0 else 0 for a in ambos[self.index])
-        #               - sum(1 if a == 0 else 0 for a in ambos[self.opponent]))
-        #return kalaha_score + empty_score
-
-        #kalaha_score = kalahas[self.index] - kalahas[self.opponent]
-        ## If we can calculate to the end, use that
-        #if state.board.is_end_position():
-        #    print "End is neigh!", kalaha_score
-        #    if kalaha_score > 0:
-        #        return 1000
-        #    elif kalaha_score < 0:
-        #        return -1000
-        ## Else, use number of empty ambos as a heurestic
-        #empty_score = (sum(1 if a == 0 else 0 for a in ambos[self.index]))
-        #               #- sum(1 if a == 0 else 0 for a in ambos[self.opponent]))
-        #return kalaha_score + (empty_score)
+        return score
 
     def get_move(self, board):
         # TODO: actually implement iterative deepening with time constraints
         return self.ids(board, depth=6)
 
-    def propagate_score(self, node, maximize):
+    def propagate_score(self, node):
         if node.parent:
+            maximize = node.move.player == self.index
             parent_score = getattr(node.parent, "score", None)
             score = node.score
             if parent_score is None:
@@ -297,44 +266,32 @@ class SearchBot(object):
             else:
                 if maximize and score > parent_score:
                     node.parent.score = score
-                elif score < parent_score:
+                elif not maximize and score < parent_score:
                     node.parent.score = score
-            self.propagate_score(node.parent, not maximize)
+            self.propagate_score(node.parent)
 
     def ids(self, board, depth):
         print("IDS Depth {0}".format(depth))
         state = GameState(board=board, turn=self.index)
         children = state.get_children()
         frontier = [c for c in children]
-        choices = []
         while frontier:
             node = frontier.pop()
             if node.depth >= depth or node.board.is_end_position():
-                maximize = node.turn == self.index
                 node.score = self.evaluate(node)
-                self.propagate_score(node, maximize=maximize)
+                self.propagate_score(node)
             else:
                 for child in node.get_children():
                     frontier.append(child)
-        #children.sort(key=lambda s: getattr(s, "score", 0), reverse=True)
-        # XXX
-        for child in children:
-            print "SCORE: ", child.score
-            print child
-            print ""
-        #time.sleep(2)
-        # /XXX
+
+        children.sort(key=lambda s: getattr(s, "score", 0), reverse=True)
         if children:
             self._pre_move(children[0])
             return children[0].move
 
 
 def play_game(board_cls=AnimatedBoard,
-              #player_1_cls=GreedyBot,
               player_1_cls=SearchBot,
-              #player_1_cls=RandomBot,
-              #player_1_cls=HumanPlayer,
-              #player_2_cls=SearchBot
               player_2_cls=GreedyBot
               ):
     board = board_cls()
@@ -348,24 +305,13 @@ def play_game(board_cls=AnimatedBoard,
         move = players[current_turn].get_move(board)
         current_turn = board.make_move(move)
     if board.kalahas[PLAYER_1] > board.kalahas[PLAYER_2]:
-        print("Player 1 wins! ({0:2d} - {1:2d})".format(*board.kalahas))
+        print("Player 1 ({0}) wins! ({1:2d} - {2:2d})".format(
+            players[0].__class__.__name__, *board.kalahas))
     elif board.kalahas[PLAYER_2] > board.kalahas[PLAYER_1]:
-        print("Player 2 wins! ({0:2d} - {1:2d})".format(*board.kalahas))
+        print("Player 2 ({0}) wins! ({1:2d} - {2:2d})".format(
+            players[1].__class__.__name__, *board.kalahas))
     else:
         print("It's a tie! ({0:2d} - {1:2d})".format(*board.kalahas))
-
-
-def _print_children(board, current_turn):
-    state = GameState(board=board, turn=current_turn)
-    print("=== Children ===")
-    for child in state.get_children():
-        print("=====================")
-        print(child)
-        print("=== Grandchildren ===")
-        for grandchild in child.get_children():
-            print(grandchild)
-        print("=====================")
-        print("")
 
 
 if __name__ == "__main__":
