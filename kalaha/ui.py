@@ -1,5 +1,6 @@
 import pygame
 import pygame.locals as pg
+from . import ai
 from . import game
 from .game import PLAYER_1, PLAYER_2, AMBOS
 
@@ -13,11 +14,14 @@ def draw_text(text, size=36, color=(100, 100, 100)):
     return font.render(str(text), 1, color)
 
 
-class Human(game.HumanPlayer):
-    __name__ = "Human"
+class Human(object):
     is_human = True
 
+    def __init__(self, player_index):
+        self.index = player_index
+
     def get_move(self, board):
+        # Leave for the UI
         pass
 
 
@@ -33,7 +37,7 @@ class Game(object):
         self.turn_component = None
         self.score_component = None
         self.new_game_components = []
-        self.players = [Human(PLAYER_1), game.RandomBot(PLAYER_2)]
+        self.players = [Human(PLAYER_1), ai.RandomBot(PLAYER_2)]
         self.board = game.Board()
 
         center = self.screen.get_rect().center
@@ -89,7 +93,7 @@ class Game(object):
         right = 800 - 40
         height = 30
         from functools import partial
-        for i, bot_class in enumerate([game.RandomBot, game.GreedyBot, game.SearchBot]):
+        for i, bot_class in enumerate([ai.RandomBot, ai.GreedyBot, ai.SearchBot]):
             component = SimpleTextComponent("New game ({0})".format(bot_class.__name__), size=20)
             component.active = True
             component.on_click = partial(self.init_round, player_2_class=bot_class)
@@ -97,7 +101,7 @@ class Game(object):
             component.rect.right = right
             self.components.add(component)
 
-    def init_round(self, player_1_class=Human, player_2_class=game.RandomBot):
+    def init_round(self, player_1_class=Human, player_2_class=ai.RandomBot):
         self.players = [player_1_class(PLAYER_1),
                         player_2_class(PLAYER_2)]
         self.name_components[PLAYER_1].set_text(player_1_class.__name__)
@@ -319,7 +323,6 @@ class SimpleTextComponent(ClickableComponent):
 
 class BeanComponent(ClickableComponent):
     bg_color_normal = (100, 200, 150)
-    #bg_color_hilight = (150, 220, 170)
     bg_color_hilight = (60, 140, 100)
 
     def __init__(self, player):
