@@ -59,3 +59,7 @@ def play_game(board_cls=AnimatedBoard,
             players[1].__class__.__name__, *board.kalahas))
     else:
         print("It's a tie! ({0:2d} - {1:2d})".format(*board.kalahas))
+
+
+if __name__ == "__main__":
+    play_game()
